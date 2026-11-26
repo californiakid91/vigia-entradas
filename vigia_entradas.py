@@ -1,29 +1,38 @@
 #!/usr/bin/env python3
 """
-Vigía de entradas – España vs Francia (UEFA Nations League)
-Comprueba la página de tickets.rfef.es y avisa por correo (Gmail) cuando:
-  - aparecen palabras de compra ("comprar", "añadir al carrito"...)  -> aviso URGENTE
-  - el texto de la página cambia de forma relevante                -> aviso normal
-  - la web falla o bloquea varias veces seguidas                   -> aviso de error
+Vigía de entradas – España vs Francia (UEFA Nations League, cuartos, marzo 2027)
+
+Hace dos comprobaciones y avisa por correo (Gmail):
+  1) NOTICIAS de rfef.es (Selección Absoluta + portada de noticias):
+       - noticia nueva que hable de entradas y de Francia/Nations/cuartos -> URGENTE
+       - cualquier otra noticia nueva sobre entradas o sobre Francia      -> aviso normal
+  2) PÁGINA DEL EVENTO en tickets.rfef.es:
+       - aparecen palabras de compra ("comprar", "cola virtual"...)      -> URGENTE
+       - cambia el texto de la página                                   -> aviso normal
+     (Esta web bloquea a GitHub con HTTP 403: en ese caso avisa UNA sola vez
+      y sigue funcionando el vigilante de noticias.)
 
 Uso:
   python3 vigia_entradas.py --once            # una comprobación (GitHub Actions)
-  python3 vigia_entradas.py --intervalo 60    # bucle cada 60 s (tu ordenador)
+  python3 vigia_entradas.py --intervalo 60    # bucle cada 60 s (ordenador)
   python3 vigia_entradas.py --test-aviso      # manda un correo de prueba
 
 Variables de entorno:
-  GMAIL_USER          (obligatoria) tu dirección de Gmail, que envía el correo
+  GMAIL_USER          (obligatoria) tu Gmail, que envía el correo
   GMAIL_APP_PASSWORD  (obligatoria) contraseña de aplicación de Google (16 letras)
   EMAIL_TO            (opcional)    destinatario; por defecto, el mismo Gmail
-  URL                 (opcional)    página a vigilar
 Solo usa la biblioteca estándar de Python 3.8+.
 """
-import argparse, hashlib, html, json, os, re, sys, time, difflib
-import urllib.request, urllib.error, smtplib
+import argparse, hashlib, html, json, os, re, sys, time, difflib, smtplib
+import urllib.request, urllib.error
 from email.message import EmailMessage
 from datetime import datetime, timezone
 
-URL = os.environ.get("URL", "https://tickets.rfef.es/evento/espana-francia-uefa-nations-league/")
+URL_EVENTO = os.environ.get("URL", "https://tickets.rfef.es/evento/espana-francia-uefa-nations-league/")
+URLS_NOTICIAS = [
+    "https://rfef.es/es/noticias/seleccion-absoluta?baseFilters=79393",
+    "https://rfef.es/es/noticias",
+]
 GMAIL_USER = os.environ.get("GMAIL_USER", "").strip()
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "").strip()
 EMAIL_TO = os.environ.get("EMAIL_TO", "").strip() or GMAIL_USER
@@ -33,12 +42,17 @@ PALABRAS_COMPRA = [
     "comprar", "compra tus entradas", "comprar entradas", "añadir al carrito",
     "anadir al carrito", "seleccionar entradas", "elige tus entradas",
     "selecciona tu zona", "ir a la compra", "add to cart", "buy tickets",
-    "cola virtual", "sala de espera",
+    "cola virtual", "sala de espera", "formulario de registro",
 ]
 PALABRAS_NO_DISPONIBLE = [
     "próximamente", "proximamente", "agotad", "no disponible", "sold out",
     "venta no iniciada", "fuera de venta",
 ]
+# Palabras en la URL/título de una noticia
+TEMA_ENTRADAS = ["entradas", "localidades", "venta", "tickets", "registro", "formulario"]
+TEMA_PARTIDO = ["francia", "nations", "cuartos", "liga-de-naciones", "liga de naciones"]
+EXCLUIR_NOTICIA = ["femenin", "sub-", "futbol-sala", "sala", "playa", "ereuropa", "arbitr", "designaciones"]
+
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")
 
@@ -54,21 +68,24 @@ def descargar(url):
         "Accept-Language": "es-ES,es;q=0.9",
         "Cache-Control": "no-cache",
     })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.status, r.read().decode(r.headers.get_content_charset() or "utf-8", "replace")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, r.read().decode(r.headers.get_content_charset() or "utf-8", "replace")
+    except urllib.error.HTTPError as ex:
+        return ex.code, ""
+    except Exception as ex:
+        print(f"[{ahora()}] Error de conexión con {url}: {ex}")
+        return 0, ""
 
 
 def texto_visible(pagina):
     p = re.sub(r"(?is)<(script|style|noscript|svg|template)[^>]*>.*?</\1>", " ", pagina)
     p = re.sub(r"(?is)<!--.*?-->", " ", p)
-    # conserva el texto de botones/enlaces y los value/aria-label de inputs
     extras = re.findall(r'(?i)(?:value|aria-label|title)\s*=\s*"([^"]{2,80})"', p)
     p = re.sub(r"(?s)<[^>]+>", "\n", p)
     p = html.unescape(p) + "\n" + "\n".join(extras)
     lineas = [re.sub(r"\s+", " ", l).strip() for l in p.splitlines()]
-    # quita líneas vacías y ruido típico (horas, tokens largos)
-    limpias = [l for l in lineas if l and not re.fullmatch(r"[\w\-]{30,}", l)]
-    return "\n".join(limpias)
+    return "\n".join(l for l in lineas if l and not re.fullmatch(r"[\w\-]{30,}", l))
 
 
 def buscar(texto, palabras):
@@ -89,8 +106,8 @@ def guardar_estado(e):
         json.dump(e, f, ensure_ascii=False, indent=1)
 
 
-def avisar(titulo, mensaje, prioridad="default", etiquetas=""):
-    print(f"[{ahora()}] AVISO: {titulo} | {mensaje[:200]}")
+def avisar(titulo, mensaje, prioridad="default", enlace=URL_EVENTO):
+    print(f"[{ahora()}] AVISO: {titulo} | {mensaje[:300]}")
     if not (GMAIL_USER and GMAIL_APP_PASSWORD):
         print("  (GMAIL_USER / GMAIL_APP_PASSWORD no configurados: aviso solo en pantalla)")
         return
@@ -101,70 +118,134 @@ def avisar(titulo, mensaje, prioridad="default", etiquetas=""):
     if prioridad in ("urgent", "high"):
         msg["X-Priority"] = "1"
         msg["Importance"] = "High"
-    msg.set_content(f"{mensaje}\n\nAbrir la página: {URL}\n\n({ahora()})")
+    msg.set_content(f"{mensaje}\n\nAbrir: {enlace}\nEntradas: {URL_EVENTO}\n\n({ahora()})")
     msg.add_alternative(
-        f"<p style='font-size:16px'>{html.escape(mensaje)}</p>"
-        f"<p><a href='{URL}' style='display:inline-block;padding:12px 20px;background:#c60b1e;"
-        f"color:#fff;border-radius:8px;text-decoration:none;font-weight:bold'>Abrir entradas</a></p>"
+        f"<p style='font-size:16px;white-space:pre-line'>{html.escape(mensaje)}</p>"
+        f"<p><a href='{enlace}' style='display:inline-block;padding:12px 20px;background:#c60b1e;"
+        f"color:#fff;border-radius:8px;text-decoration:none;font-weight:bold'>Abrir</a></p>"
+        f"<p><a href='{URL_EVENTO}'>Página de entradas</a></p>"
         f"<p style='color:#888;font-size:12px'>{ahora()}</p>", subtype="html")
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as s:
             s.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             s.send_message(msg)
+        print("  Correo enviado.")
     except Exception as ex:
         print(f"  Error enviando correo: {ex}")
 
 
-def comprobar():
-    e = cargar_estado()
-    try:
-        status, pagina = descargar(URL)
-    except urllib.error.HTTPError as ex:
-        status, pagina = ex.code, ""
-    except Exception as ex:
-        status, pagina = 0, ""
-        print(f"[{ahora()}] Error de conexión: {ex}")
+# ---------------------------------------------------------------- NOTICIAS
+def extraer_noticias(pagina):
+    """Devuelve {slug: titulo} de los enlaces /es/noticias/<slug>."""
+    res = {}
+    for m in re.finditer(r'(?is)<a[^>]+href="(?:https://rfef\.es)?/es/noticias/([a-z0-9\-]+)"[^>]*>(.*?)</a>', pagina):
+        slug, titulo = m.group(1), re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", m.group(2)))).strip()
+        if slug in ("institucional", "labor-federativa", "competiciones-masculinas", "competiciones-femeninas",
+                    "arbitros", "seleccion-absoluta", "seleccion-absoluta-femenina", "futbol-sala"):
+            continue
+        if len(slug) > 15 and (slug not in res or len(titulo) > len(res[slug])):
+            res[slug] = titulo
+    return res
 
+
+def clasificar(slug, titulo):
+    t = (slug + " " + titulo).lower()
+    if any(x in t for x in EXCLUIR_NOTICIA):
+        return None
+    ent = any(x in t for x in TEMA_ENTRADAS)
+    par = any(x in t for x in TEMA_PARTIDO)
+    if ent and par:
+        return "urgente"
+    if ent or "francia" in t:
+        return "normal"
+    return None
+
+
+def comprobar_noticias(e):
+    vistas = set(e.get("noticias_vistas", []))
+    primera = not vistas
+    encontradas, fallos = {}, 0
+    for url in URLS_NOTICIAS:
+        status, pagina = descargar(url)
+        if status != 200 or not pagina:
+            fallos += 1
+            print(f"[{ahora()}] Noticias: fallo HTTP {status} en {url}")
+            continue
+        encontradas.update(extraer_noticias(pagina))
+
+    if fallos == len(URLS_NOTICIAS):
+        e["fallos_noticias"] = e.get("fallos_noticias", 0) + 1
+        if e["fallos_noticias"] == 3:
+            avisar("⚠️ Vigía: no puedo leer las noticias de rfef.es",
+                   "3 fallos seguidos. Revisa a mano https://rfef.es/es/noticias", "high",
+                   "https://rfef.es/es/noticias")
+        return
+    if e.get("fallos_noticias", 0) >= 3:
+        avisar("✅ Vigía: vuelvo a leer las noticias", "Sigo vigilando.", "low", "https://rfef.es/es/noticias")
+    e["fallos_noticias"] = 0
+
+    print(f"[{ahora()}] Noticias OK · {len(encontradas)} enlaces leídos")
+    nuevas = {s: t for s, t in encontradas.items() if s not in vistas}
+    relevantes = [(clasificar(s, t), s, t) for s, t in nuevas.items()]
+    relevantes = [r for r in relevantes if r[0]]
+
+    if primera:
+        ya = [f"• {t or s}" for c, s, t in relevantes]
+        avisar("👀 Vigía activado (noticias rfef.es)",
+               f"Leo {len(encontradas)} noticias. Te escribiré en cuanto salga una nueva sobre entradas o Francia.\n"
+               + ("Ahora mismo ya hay estas relacionadas:\n" + "\n".join(ya) if ya else "Ahora mismo no hay ninguna."),
+               "low", "https://rfef.es/es/noticias/seleccion-absoluta?baseFilters=79393")
+    else:
+        for c, s, t in sorted(relevantes):
+            enlace = f"https://rfef.es/es/noticias/{s}"
+            if c == "urgente":
+                avisar("🚨 ¡NOTICIA DE ENTRADAS! España–Francia",
+                       f"{t or s}\nLee fechas, fases y si hay formulario de registro.", "urgent", enlace)
+            else:
+                avisar("📰 Noticia RFEF: posible info de entradas", t or s, "high", enlace)
+
+    e["noticias_vistas"] = sorted(vistas | set(encontradas))[-3000:]
+
+
+# ---------------------------------------------------------- PÁGINA EVENTO
+def comprobar_evento(e):
+    status, pagina = descargar(URL_EVENTO)
     if status != 200 or not pagina:
         e["fallos"] = e.get("fallos", 0) + 1
-        print(f"[{ahora()}] Fallo HTTP {status} ({e['fallos']} seguidos)")
-        if e["fallos"] == 3:   # avisa una sola vez por racha de fallos
-            avisar("⚠️ Vigía: la web no responde",
-                   f"HTTP {status} 3 veces seguidas. Puede ser caída, cola virtual o bloqueo anti-bots. Mírala a mano.",
-                   "high", "warning")
-        guardar_estado(e)
+        print(f"[{ahora()}] Evento: fallo HTTP {status} ({e['fallos']} seguidos)")
+        if e["fallos"] == 3 and not e.get("aviso_bloqueo_enviado"):
+            avisar("ℹ️ Vigía: la web de entradas bloquea las comprobaciones automáticas",
+                   f"tickets.rfef.es responde HTTP {status}. Sigo vigilando las NOTICIAS de rfef.es "
+                   "(ahí se anuncian las fechas de venta). Este aviso solo te llega una vez.", "default")
+            e["aviso_bloqueo_enviado"] = True
         return
-
-    if e.get("fallos", 0) >= 3:
-        avisar("✅ Vigía: la web vuelve a responder", "Sigo vigilando.", "low", "white_check_mark")
     e["fallos"] = 0
 
     texto = texto_visible(pagina)
     huella = hashlib.sha256(texto.encode()).hexdigest()
     compra = buscar(texto, PALABRAS_COMPRA)
     no_disp = buscar(texto, PALABRAS_NO_DISPONIBLE)
-    print(f"[{ahora()}] OK · compra={compra or '-'} · no_disponible={no_disp or '-'}")
+    print(f"[{ahora()}] Evento OK · compra={compra or '-'} · no_disponible={no_disp or '-'}")
 
-    primera = "huella" not in e
-    if primera:
-        avisar("👀 Vigía activado",
-               f"Vigilando la página. Ahora mismo: compra={', '.join(compra) or 'nada'}; "
-               f"no disponible={', '.join(no_disp) or 'nada'}.", "low", "eyes")
-    else:
+    if "huella" in e:
         nuevas = [w for w in compra if w not in e.get("compra", [])]
         if nuevas:
             avisar("🚨 ¡ENTRADAS! España–Francia",
-                   f"Han aparecido en la página: {', '.join(nuevas)}. ¡Entra ya!",
-                   "urgent", "rotating_light,soccer")
+                   f"Han aparecido en la página: {', '.join(nuevas)}. ¡Entra ya!", "urgent")
         elif huella != e.get("huella"):
             antes = e.get("texto", "").splitlines()
             diff = [l[1:] for l in difflib.unified_diff(antes, texto.splitlines(), lineterm="", n=0)
                     if l.startswith("+") and not l.startswith("+++")]
-            resumen = " · ".join(diff)[:300] or "(cambios menores)"
-            avisar("🔔 Cambio en la página de entradas", f"Nuevo texto: {resumen}", "high", "bell")
+            avisar("🔔 Cambio en la página de entradas",
+                   "Nuevo texto: " + (" · ".join(diff)[:300] or "(cambios menores)"), "high")
+    e.update(huella=huella, compra=compra, no_disp=no_disp, texto=texto[:20000])
 
-    e.update(huella=huella, compra=compra, no_disp=no_disp, texto=texto[:20000],
-             ultima=datetime.now(timezone.utc).isoformat())
+
+def comprobar():
+    e = cargar_estado()
+    comprobar_noticias(e)
+    comprobar_evento(e)
+    e["ultima"] = datetime.now(timezone.utc).isoformat()
     guardar_estado(e)
 
 
@@ -175,12 +256,12 @@ def main():
     ap.add_argument("--test-aviso", action="store_true")
     a = ap.parse_args()
     if a.test_aviso:
-        avisar("🧪 Prueba del vigía", "Si ves esto en el móvil, los avisos funcionan.", "high", "test_tube")
+        avisar("🧪 Prueba del vigía", "Si ves esto, los correos funcionan.", "high")
         return
     if a.once:
         comprobar()
         return
-    print(f"Vigilando {URL} cada {a.intervalo}s. Ctrl+C para parar.")
+    print(f"Vigilando cada {a.intervalo}s. Ctrl+C para parar.")
     while True:
         comprobar()
         time.sleep(max(20, a.intervalo))
