@@ -9,6 +9,9 @@ Hace dos comprobaciones y avisa por correo (Gmail):
        - entradas Mundial 2030                               -> URGENTE
        - entradas de cualquier otro partido de España        -> aviso normal
      (Ignora femenina, categorías inferiores, clubes, árbitros y productos.)
+  1b) GOOGLE NOTICIAS (para la FIFA, cuya web no se puede leer): titulares
+     nuevos sobre venta/registro/sorteo de entradas del Mundial 2030 o del
+     España–Francia. Un solo correo por comprobación con todos los titulares.
   2) PÁGINA DEL EVENTO en tickets.rfef.es:
        - aparecen palabras de compra ("comprar", "cola virtual"...)      -> URGENTE
        - cambia el texto de la página                                   -> aviso normal
@@ -27,7 +30,7 @@ Variables de entorno:
 Solo usa la biblioteca estándar de Python 3.8+.
 """
 import argparse, hashlib, html, json, os, re, sys, time, difflib, smtplib
-import urllib.request, urllib.error
+import urllib.request, urllib.error, urllib.parse
 from email.message import EmailMessage
 from datetime import datetime, timezone
 
@@ -231,6 +234,80 @@ def comprobar_noticias(e):
     e["noticias_vistas"] = sorted(vistas | set(encontradas))[-3000:]
 
 
+# ------------------------------------------------- GOOGLE NOTICIAS (FIFA)
+# FIFA.com no se puede leer automáticamente (todo es JavaScript), así que se
+# vigilan titulares en Google Noticias: cualquier anuncio de FIFA o RFEF sobre
+# entradas sale ahí en minutos.
+BUSQUEDAS_GOOGLE = [
+    ("mundial", '"Mundial 2030" entradas'),
+    ("mundial", '"World Cup 2030" tickets'),
+    ("mundial", 'FIFA 2030 entradas registro'),
+    ("francia", 'entradas "España-Francia" Mestalla'),
+]
+TITULAR_ENTRADAS = ["entrada", "ticket", "billete", "localidad"]
+TITULAR_CLAVE = ["venta", "registro", "regist", "sorteo", "fase", "precio", "comprar", "cómo", "como ",
+                 "fecha", "sale", "on sale", "ballot", "draw", "apply", "solicitud", "inscripci",
+                 "abonados", "socios", "preventa", "cuándo", "cuando", "when", "how to"]
+TITULAR_EXCLUIR = ["reventa ilegal", "estafa", "femenin", "women", "sub-", "club world cup",
+                   "mundial de clubes", "2026"]
+
+
+def norm_titulo(t):
+    t = re.sub(r"\s+-\s+[^-]+$", "", t)  # quita " - Medio"
+    return re.sub(r"[^a-z0-9áéíóúñü ]", "", t.lower()).strip()
+
+
+def comprobar_google(e):
+    vistos = set(e.get("google_vistos", []))
+    primera = "google_vistos" not in e
+    nuevos, fallos = [], 0
+    for tipo, q in BUSQUEDAS_GOOGLE:
+        url = ("https://news.google.com/rss/search?q=" + urllib.parse.quote(q + " when:30d")
+               + "&hl=es&gl=ES&ceid=ES:es")
+        status, xml = descargar(url)
+        if status != 200 or "<rss" not in xml[:500]:
+            fallos += 1
+            continue
+        for item in re.findall(r"(?s)<item>(.*?)</item>", xml):
+            tt = re.search(r"(?s)<title>(.*?)</title>", item)
+            ll = re.search(r"(?s)<link>(.*?)</link>", item)
+            if not tt:
+                continue
+            titulo = html.unescape(re.sub(r"<!\[CDATA\[|\]\]>", "", tt.group(1))).strip()
+            clave = norm_titulo(titulo)
+            if not clave or clave in vistos:
+                continue
+            vistos.add(clave)
+            tl = titulo.lower()
+            if any(x in tl for x in TITULAR_EXCLUIR):
+                continue
+            if not any(x in tl for x in TITULAR_ENTRADAS) or not any(x in tl for x in TITULAR_CLAVE):
+                continue
+            if tipo == "mundial" and "2030" not in tl:
+                continue
+            nuevos.append((tipo, titulo, ll.group(1).strip() if ll else ""))
+
+    if fallos == len(BUSQUEDAS_GOOGLE):
+        e["fallos_google"] = e.get("fallos_google", 0) + 1
+        print(f"[{ahora()}] Google Noticias: sin respuesta ({e['fallos_google']} seguidas)")
+        if e["fallos_google"] == 12:  # ~1 hora
+            avisar("⚠️ Vigía: no puedo leer Google Noticias",
+                   "Llevo 1 hora sin poder leerlo. Las noticias de rfef.es se siguen vigilando.", "default",
+                   "https://news.google.com")
+        return
+    e["fallos_google"] = 0
+    print(f"[{ahora()}] Google Noticias OK · {len(nuevos)} titulares nuevos relevantes")
+
+    if not primera and nuevos:
+        hay_mundial = any(t == "mundial" for t, _, _ in nuevos)
+        asunto = "🏆 FIFA / Mundial 2030: noticias de entradas" if hay_mundial else \
+                 "📰 Prensa: noticias de entradas España–Francia"
+        cuerpo = "\n\n".join(f"• {t}\n{l}" for _, t, l in nuevos[:10])
+        avisar(asunto, cuerpo + "\n\nConfirma siempre en FIFA.com/tickets o tickets.rfef.es.",
+               "high", nuevos[0][2] or "https://www.fifa.com/tickets")
+    e["google_vistos"] = sorted(vistos)[-3000:]
+
+
 # ---------------------------------------------------------- PÁGINA EVENTO
 def comprobar_evento(e):
     status, pagina = descargar(URL_EVENTO)
@@ -268,6 +345,7 @@ def comprobar_evento(e):
 def comprobar():
     e = cargar_estado()
     comprobar_noticias(e)
+    comprobar_google(e)
     comprobar_evento(e)
     e["ultima"] = datetime.now(timezone.utc).isoformat()
     guardar_estado(e)
