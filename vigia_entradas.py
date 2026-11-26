@@ -3,9 +3,12 @@
 Vigía de entradas – España vs Francia (UEFA Nations League, cuartos, marzo 2027)
 
 Hace dos comprobaciones y avisa por correo (Gmail):
-  1) NOTICIAS de rfef.es (Selección Absoluta + portada de noticias):
-       - noticia nueva que hable de entradas y de Francia/Nations/cuartos -> URGENTE
-       - cualquier otra noticia nueva sobre entradas o sobre Francia      -> aviso normal
+  1) NOTICIAS de rfef.es (Selección Absoluta + portada de noticias), solo
+     entradas de la Selección española masculina absoluta:
+       - entradas España–Francia (Mestalla, Nations League)   -> URGENTE
+       - entradas Mundial 2030                               -> URGENTE
+       - entradas de cualquier otro partido de España        -> aviso normal
+     (Ignora femenina, categorías inferiores, clubes, árbitros y productos.)
   2) PÁGINA DEL EVENTO en tickets.rfef.es:
        - aparecen palabras de compra ("comprar", "cola virtual"...)      -> URGENTE
        - cambia el texto de la página                                   -> aviso normal
@@ -48,10 +51,24 @@ PALABRAS_NO_DISPONIBLE = [
     "próximamente", "proximamente", "agotad", "no disponible", "sold out",
     "venta no iniciada", "fuera de venta",
 ]
-# Palabras en la URL/título de una noticia
-TEMA_ENTRADAS = ["entradas", "localidades", "venta", "tickets", "registro", "formulario"]
-TEMA_PARTIDO = ["francia", "nations", "cuartos", "liga-de-naciones", "liga de naciones"]
-EXCLUIR_NOTICIA = ["femenin", "sub-", "futbol-sala", "sala", "playa", "ereuropa", "arbitr", "designaciones"]
+# Solo noticias de ENTRADAS de la Selección española masculina absoluta.
+# Palabras que se buscan en la URL y el título de cada noticia:
+ENTRADAS_FUERTE = ["entradas", "localidades", "tickets"]
+ENTRADAS_DEBIL = ["venta", "preventa", "registro", "formulario", "abonados", "socios", "sorteo de entradas"]
+PARTIDO_FRANCIA = ["francia", "nations", "cuartos", "mestalla", "liga-de-naciones", "liga de naciones"]
+MUNDIAL_2030 = ["2030"]
+EXCLUIR_NOTICIA = [
+    # otras selecciones y categorías
+    "femenin", "sub-", "sub1", "sub2", "futbol-sala", "futsal", "sala", "playa", "ereuropa", "esports",
+    "mundial-de-clubes", "mundial de clubes", "regional", "amateur", "veteran",
+    # competiciones de clubes
+    "copa-del-rey", "copa del rey", "copa-de-la-reina", "copa de la reina", "supercopa",
+    "primera-federacion", "segunda-federacion", "tercera-federacion", "primera federacion",
+    "segunda federacion", "tercera federacion", "liga-f", "arbitr", "designaciones",
+    # productos
+    "comic", "cómic", "camiseta", "tienda", "libro", "album", "álbum", "coleccion", "colección",
+    "merchandising", "equipacion", "equipación",
+]
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")
@@ -152,12 +169,16 @@ def clasificar(slug, titulo):
     t = (slug + " " + titulo).lower()
     if any(x in t for x in EXCLUIR_NOTICIA):
         return None
-    ent = any(x in t for x in TEMA_ENTRADAS)
-    par = any(x in t for x in TEMA_PARTIDO)
-    if ent and par:
-        return "urgente"
-    if ent or "francia" in t:
-        return "normal"
+    fuerte = any(x in t for x in ENTRADAS_FUERTE)
+    entradas = fuerte or any(x in t for x in ENTRADAS_DEBIL)
+    if not entradas:
+        return None
+    if any(x in t for x in PARTIDO_FRANCIA):
+        return "francia"
+    if any(x in t for x in MUNDIAL_2030):
+        return "mundial"
+    if fuerte:
+        return "seleccion"
     return None
 
 
@@ -192,17 +213,20 @@ def comprobar_noticias(e):
     if primera:
         ya = [f"• {t or s}" for c, s, t in relevantes]
         avisar("👀 Vigía activado (noticias rfef.es)",
-               f"Leo {len(encontradas)} noticias. Te escribiré en cuanto salga una nueva sobre entradas o Francia.\n"
+               f"Leo {len(encontradas)} noticias. Te escribiré en cuanto salga una nueva sobre entradas de la "
+               "Selección española (España–Francia, otros partidos y Mundial 2030).\n"
                + ("Ahora mismo ya hay estas relacionadas:\n" + "\n".join(ya) if ya else "Ahora mismo no hay ninguna."),
                "low", "https://rfef.es/es/noticias/seleccion-absoluta?baseFilters=79393")
     else:
+        asuntos = {
+            "francia": "🚨 ¡ENTRADAS España–Francia (Mestalla)!",
+            "mundial": "🏆 ¡ENTRADAS Mundial 2030!",
+            "seleccion": "🇪🇸 Entradas de la Selección española",
+        }
         for c, s, t in sorted(relevantes):
             enlace = f"https://rfef.es/es/noticias/{s}"
-            if c == "urgente":
-                avisar("🚨 ¡NOTICIA DE ENTRADAS! España–Francia",
-                       f"{t or s}\nLee fechas, fases y si hay formulario de registro.", "urgent", enlace)
-            else:
-                avisar("📰 Noticia RFEF: posible info de entradas", t or s, "high", enlace)
+            avisar(asuntos[c], f"{t or s}\nLee fechas, fases y si hay formulario de registro.",
+                   "urgent" if c != "seleccion" else "high", enlace)
 
     e["noticias_vistas"] = sorted(vistas | set(encontradas))[-3000:]
 
