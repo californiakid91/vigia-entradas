@@ -1,5 +1,5 @@
 {
- "fallos": 2,
+ "fallos": 3,
  "fallos_noticias": 0,
  "noticias_vistas": [
   "1328-Days-Unbeaten",
@@ -25,5 +25,6 @@
   "queremos-volver-ganar-la-nations",
   "rafael-louzan-preside-en-madrid-los-actos-institucionales-con-motivo-del-espana-inglaterra"
  ],
- "ultima": "2026-11-26T22:51:55.942532+00:00"
+ "ultima": "2026-11-26T23:04:18.013663+00:00",
+ "aviso_bloqueo_enviado": true
 }
