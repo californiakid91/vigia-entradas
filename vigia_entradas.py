@@ -342,11 +342,28 @@ def comprobar_evento(e):
     e.update(huella=huella, compra=compra, no_disp=no_disp, texto=texto[:20000])
 
 
+def latido_mensual(e):
+    """Un correo al mes ("sigo vivo"). Si algún mes no llega, el vigía se ha parado."""
+    mes = datetime.now(timezone.utc).strftime("%Y-%m")
+    if "latido" not in e:            # primera vez: solo apunta el mes, sin correo
+        e["latido"], e["comprobaciones_mes"] = mes, 0
+    if e["latido"] != mes:
+        n = e.get("comprobaciones_mes", 0)
+        avisar("💚 Vigía de entradas: sigo activo",
+               f"Resumen del mes pasado: {n} comprobaciones hechas.\n"
+               f"Sigo vigilando rfef.es y las noticias de FIFA / Mundial 2030.\n"
+               f"Si algún mes no recibes este correo, entra en GitHub → Actions → Enable workflow.",
+               "low", "https://rfef.es/es/noticias/seleccion-absoluta?baseFilters=79393")
+        e["latido"], e["comprobaciones_mes"] = mes, 0
+    e["comprobaciones_mes"] = e.get("comprobaciones_mes", 0) + 1
+
+
 def comprobar():
     e = cargar_estado()
     comprobar_noticias(e)
     comprobar_google(e)
     comprobar_evento(e)
+    latido_mensual(e)
     e["ultima"] = datetime.now(timezone.utc).isoformat()
     guardar_estado(e)
 
