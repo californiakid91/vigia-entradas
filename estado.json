@@ -1,3 +1,29 @@
 {
- "fallos": 1
+ "fallos": 2,
+ "fallos_noticias": 0,
+ "noticias_vistas": [
+  "1328-Days-Unbeaten",
+  "david-gordo-el-grupo-nos-obliga-estar-al-maximo-desde-el-inicio",
+  "derrota-por-la-minima-que-no-empata-un-historico-2026",
+  "designaciones-definidos-los-arbitros-que-dirigiran-la-jornada-13-de-la-temporada-202627-0",
+  "designaciones-definidos-los-arbitros-que-dirigiran-la-jornada-14-de-la-temporada-202627",
+  "designaciones-estos-son-los-arbitros-para-el-partido-del-viernes-27-de-noviembre-en-0",
+  "el-presidente-de-la-rfef-recibe-sm-el-rey-su-llegada-al-estadio-metropolitano",
+  "el-trofeo-de-los-campeones-se-exhibe-en-la-tierra-de-quien-nos-regalo-nuestra-segunda",
+  "erase-una-vez-en-america-el-comic-oficial-que-cuenta-la-historia-de-nuestra-segunda",
+  "espana-cerrara-ante-francia-mas-de-un-siglo-de-historia-en-mestalla",
+  "espana-completa-su-segundo-entrenamiento-en-las-rozas",
+  "espana-gana-marruecos-y-se-corona-lider-de-su-grupo-en-el-mundial-sub-17-0-2",
+  "espana-se-medira-francia-en-los-cuartos-de-final-de-la-uefa-nations-league",
+  "la-copa-de-la-reina-iberdrola-completa-su-cuadro-de-octavos-de-final",
+  "la-rfef-contara-con-el-presupuesto-mas-alto-de-la-historia-de-433-millones-gracias-la",
+  "la-rfef-y-breitling-celebran-la-segunda-estrella-con-una-edicion-especial-del-reloj",
+  "laliga-en-colaboracion-con-el-comite-de-entrenadores-de-la-rfef-celebra-una-nueva-jornada",
+  "los-horarios-de-la-jornada-11-de-segunda-federacion",
+  "luis-de-la-fuente-el-recorrido-de-la-seleccion-es-muy-largo-y-nos-quedan-muchos-volumenes",
+  "mas-de-siete-mil-jovenes-disfrutan-del-trofeo-mundialista-en-santiago-de-compostela",
+  "queremos-volver-ganar-la-nations",
+  "rafael-louzan-preside-en-madrid-los-actos-institucionales-con-motivo-del-espana-inglaterra"
+ ],
+ "ultima": "2026-11-26T22:51:55.942532+00:00"
 }
