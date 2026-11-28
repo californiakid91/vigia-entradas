@@ -1,5 +1,5 @@
 {
- "fallos": 8,
+ "fallos": 9,
  "fallos_noticias": 0,
  "noticias_vistas": [
   "1328-Days-Unbeaten",
@@ -10,19 +10,28 @@
   "designaciones-definidos-los-arbitros-que-dirigiran-la-jornada-13-de-la-temporada-202627-0",
   "designaciones-definidos-los-arbitros-que-dirigiran-la-jornada-14-de-la-temporada-202627",
   "designaciones-estos-son-los-arbitros-para-el-partido-del-viernes-27-de-noviembre-en-0",
+  "designaciones-estos-son-los-arbitros-para-los-partidos-del-domingo-29-de-noviembre-en",
+  "designaciones-estos-son-los-arbitros-para-los-partidos-del-domingo-29-de-noviembre-en-0",
   "designaciones-estos-son-los-arbitros-para-los-partidos-del-sabado-28-de-noviembre-en",
   "designaciones-estos-son-los-arbitros-para-los-partidos-del-sabado-28-de-noviembre-en-0",
+  "dorsales-confirmados-pra-el-espana-chile-de-leon",
   "ebrima-brilla-ante-marruecos",
+  "el-campeon-salva-los-muebles-ante-poio-y-la-ad-ceuta-sale-del-descenso",
   "el-destiny-en-sus-manos",
   "el-presidente-de-la-rfef-recibe-sm-el-rey-su-llegada-al-estadio-metropolitano",
   "el-trofeo-de-los-campeones-se-exhibe-en-la-tierra-de-quien-nos-regalo-nuestra-segunda",
+  "en-vivo-jornada-de-duelos-directos",
   "erase-una-vez-en-america-el-comic-oficial-que-cuenta-la-historia-de-nuestra-segunda",
   "espana-cerrara-ante-francia-mas-de-un-siglo-de-historia-en-mestalla",
   "espana-completa-su-segundo-entrenamiento-en-las-rozas",
   "espana-gana-marruecos-y-se-corona-lider-de-su-grupo-en-el-mundial-sub-17-0-2",
+  "espana-pulveriza-su-propio-record-en-un-mundial-sub-17",
   "espana-se-medira-francia-en-los-cuartos-de-final-de-la-uefa-nations-league",
   "estreno-con-victoria-en-la-ronda-1-x-x-0",
   "hernan-perez-cita-26-jugadores-para-la-ultima-concentracion-de-2026",
+  "j11-partido-aecs-l-hospitalet-ae-penya-esplugues",
+  "j11-partido-rayo-majadahonda-fsf-almagro-fsf",
+  "j11-partido-sala-5-martorell-futsal-mataro",
   "la-copa-de-la-reina-iberdrola-completa-su-cuadro-de-octavos-de-final",
   "la-rfef-contara-con-el-presupuesto-mas-alto-de-la-historia-de-433-millones-gracias-la",
   "la-rfef-superara-los-50-millones-de-euros-netos-de-ayudas-sus-federaciones-territoriales",
@@ -35,6 +44,7 @@
   "los-horarios-de-la-jornada-11-de-segunda-federacion",
   "luis-de-la-fuente-el-recorrido-de-la-seleccion-es-muy-largo-y-nos-quedan-muchos-volumenes",
   "mas-de-siete-mil-jovenes-disfrutan-del-trofeo-mundialista-en-santiago-de-compostela",
+  "previa-partido-inedito-ilusion-intacta",
   "queremos-volver-ganar-la-nations",
   "rafael-louzan-preside-en-madrid-los-actos-institucionales-con-motivo-del-espana-inglaterra",
   "rafael-louzan-visita-la-sede-de-joma-en-toledo",
@@ -45,7 +55,7 @@
   "un-illes-balears-palma-futsal-de-record",
   "uzbekistan-sera-el-rival-de-espana-en-dieciseisavos"
  ],
- "ultima": "2026-11-28T04:18:53.674018+00:00",
+ "ultima": "2026-11-28T13:16:18.560846+00:00",
  "aviso_bloqueo_enviado": true,
  "fallos_google": 0,
  "google_vistos": [
@@ -177,6 +187,7 @@
   "louzán alardea del camp nou de cara al mundial 2030 será casi el mejor estadio de europa",
   "louzán da por española la final de 2030 y se adelanta a una decisión que corresponde a fifa",
   "louzán descarta marruecos para la final del mundial 2030 solo puede ser en españa y va a ser en españa",
+  "louzán el mundial 2030 pertenece al continente europeo",
   "louzán exige que final del mundial 2030 se juegue en españa",
   "louzán la final del mundial 2030 sólo puede ser en españa y va a ser en españa",
   "louzán la final del mundial 2030 sólo puede ser en madrid o barcelona",
@@ -187,6 +198,7 @@
   "luis de la fuente quiero que la final del mundial 2030 se juegue en españa",
   "luisa sánchez reclama a caballero los proyectos del mundial 2030 antes de avanzar en la financiación",
   "marruecos estrecha cooperación en seguridad y lucha antiterrorista con catar de cara al mundial 2030",
+  "menos público entradas más caras la estrategia del bara para disparar sus ingresos en el camp nou",
   "mestalla pondrá colofón a más de un siglo con un españafrancia",
   "mestalla se despedirá de la selección con el españafrancia de ida de los cuartos de la liga de las naciones",
   "mestalla será el escenario del españafrancia",
@@ -231,5 +243,5 @@
   "zaragoza cada vez más cerca del mundial 2030 sabrá en mayo de 2027 si es sede"
  ],
  "latido": "2026-11",
- "comprobaciones_mes": 4
+ "comprobaciones_mes": 5
 }
